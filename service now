@@ -1,0 +1,50 @@
+$ cat close_servicenow.sh
+basepath=/fssoftware/admin/scripts/ApplicationsUsage/c_service-now
+LogDate=`date '+%Y%m%d%H%M%S'`
+TmpDir=/fssoftware/admin/scripts/ApplicationsUsage/c_service-now/tmp
+mailId=m.raju@optum.com,ODM_Talend_Admin_DL@ds.uhc.com
+#asg="Consumer360 - SPT"
+#incidentype=service_request
+#pri=5
+incstate="To Be Worked"
+incstateW="Work In Progress"
+comments="closed the ticket through OPTUM TALEND Integration and service down becasue of CHGXXXXXX . please verify the process running or not"
+#comments="Server decommission and stopped the monitoring Alerts"
+closecd="Solved/Solution Provided"
+signed_to\":\"$sid\"
+sid=id
+incstateC="Closed"
+userId=XXXX
+pass=XXXXXXX
+ServiceNowPrd=https://optum.service-now.com/api/now/import/u_incident?sysparm_fields=number%2Csys_created_by%2Cshort_description%2Csys_created_on%2Cactive%2Csys_id
+#ServiceNowPrd=https://optumstage.service-now.com/api/now/import/u_incident?sysparm_fields=number%2Csys_created_by%2Cshort_description%2Csys_created_on%2Cactive%2Csys_id
+echo "please place closed incident list and try or please check with techops team" >$basepath/emailMsg.txt
+LogFile="$basepath/logs/close.${LogDate}.log"
+
+if [[ -s $basepath/close.lst ]]
+
+ then
+
+mv $basepath/close.lst  $TmpDir/close.${LogDate}.lst
+set -A jNames `cat $TmpDir/close.${LogDate}.lst`
+
+    echo "Incidents has closed by OPTUM TALEND Integration self-service. please verify" > $LogFile
+	echo -e "\n" | tee -ai $LogFile
+
+for pEntry in ${jNames[*]}; do
+JbNm=$pEntry
+
+
+	updW=$(curl "${ServiceNowPrd}"  --request POST --header "Accept:application/json" --header "Content-Type:application/json" --data "{\"state\":\"$incstateC\",\"number\":\"$JbNm\",\"comments_and_work_notes\":\"$comments\",\"u_reference_1\":\"TechOps\",\"close_code\":\"$closecd\",\"close_notes\":\"$comments\",\"assigned_to\":\"$sid\"}"  --user "$userId":"$pass")
+
+	echo "$pEntry" >> $LogFile
+done
+
+ mail -s "Incidents has closed by OPTUM TALEND Integration self-service" $mailId < $LogFile
+rm -rf $basepath/close.lst
+else
+ mail -s "please check with Techops team" $mailId < $basepath/emailMsg.txt
+rm -rf $basepath/emailMsg.txt
+exit 99
+
+fi
