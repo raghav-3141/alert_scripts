@@ -1,0 +1,93 @@
+$ cat STEP1_renew_mapr_ticket_bulk.sh
+hostlist=$1;
+#$1 is the file containing all the host names
+cat $hostlist | while read line
+do
+    currentHost=$line;
+    ansible-playbook renew_mapr_ticket.yml -i ./extra_vars.yml -i hosts/$currentHost --extra-vars "host=$currentHost" --vault-password-file ./hosts/mmnbdpwd_hosts ;
+done;
+
+++++++++++++++
+---
+-
+  name: mapr ticket updating
+  hosts: '{{ host }}' #host where all prod mapr tickets are present
+  gather_facts: false
+  tasks:
+    - name: copying user.txt file to dbslp0292/dbsls0315
+      copy:
+        src: ./user.txt
+        dest: /tmp/
+      #when:
+      #  - inventory_hostname=='dbsls0315' or inventory_hostname=='dbslp0292'
+    - name: Requesting update of mapr ticket using script by BDPaaS
+      shell: "sh bdp_ss_generate_nonuser_ticket < /tmp/user.txt"
+      args:
+        chdir: "/mapr/datalake/public/scripts"
+      #when:
+      #  - inventory_hostname=='dbsls0315' or inventory_hostname=='dbslp0292'
+    - name: removing user.txt from tmp
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /tmp/user.txt
+      #when:
+      #  - inventory_hostname=='dbsls0315' or inventory_hostname=='dbslp0292'
+      +++++++++++++++++++++
+      
+      read 
+      
+      *****************************************
+*INFO ABOUT THE FILES IN THIS DIRECTORY *
+*****************************************
+MAPR Ticket Expiry Tracker Portal: http://obdp-oozie-self-service-ui.optum.com/TechOpsServerInfo/Ticket_Expiry.html
+DO NOT MODIFY ANY FILE CONTENTS ( Instead of the list that contains the hosts name)
+NOTE : This automation works in 2 steps, Step 1 includes updating the maprtickets on dbslp0292/dbsls0315 and Step 2 includes placing the updated files to all the desired locations.
+Please ping me if you see any kind of errors or issues while running these
+--------------------
+main_fetch_update.sh : Main script to fetch and update maprticket at all locations
+--------------------
+extra_vars.yml : encrypted credentials
+--------------------
+fetchExpiryDate.yml : Playbook to fetch expiry date (using fetchexpiry.sh) of mentioned nonuser ids on mapped hosts from hosts directory
+--------------------
+fetchExpiryDate_bulk.sh : script for fetchExpiryDate.yml ( pass a file as parameter )
+--------------------
+fetch_and_update_all_hosts.yml : Playbook to fetch updated ticket from dbslp0292/dbsls0315 and update/copy it in all the mapped hosts
+--------------------
+fetch_and_update_all_hosts_bulk.sh : script for fetch_and_update_all_hosts.yml ( pass a file as parameter )
+--------------------
+fetchexpiry.sh : script that is copied to all the hosts to fetch their expiry date
+--------------------
+hosts : directory containing mapped hosts list ( update here for additions/removals )
+--------------------
+renew_mapr_ticket.yml : Playbook to place a request for mapr ticket renewal on dbslp0292/dbsls0315 ( Alternative to doing ssh and executing script from BDPaaS manually)
+--------------------
+renew_mapr_ticket_bulk.sh : script for renew_mapr_ticket_bulk.yml ( pass a file as parameter )
+--------------------
+updateInapsrd6750.yml : Playbook to update fetched expiry dates using fetchExpiryDate.yml in TechOps MAPR Ticket Expiry Tracker
+--------------------
+user.txt : update the msid of the requesting person (Email notification for ticket update will be sent to this user)
+--------------------
+
+*****************************************
+HOW TO USE
+*****************************************
+1. Replace the msid in 2nd line of user.txt with your msid, do not remove the 'y' present in first line.
+2. Create a file temp.lst (anyname can work for this file) and add the ids for which the tickets need to be taken care in specified format only i.e. Each line contains only 1 id appended with "_hosts" Example: if we want to renew for fstaladt, the content should be "fstaladt_hosts" excluding quotes
+
+$ cat temp.lst
+fstaladt_hosts
+fstaladm_hosts
+
+3. execute the below command for renewal of ticket.
+sh STEP1_renew_mapr_ticket_bulk.sh temp.lst
+
+4. Wait for the email arrival for renewal of tickets. Once you receive the update email for all the ids in temp.lst, you can move ahead for STEP2.
+5. Execute the below command for step 2 of the procedure.
+sh STEP2_main_fetch_update.sh temp.lst
+
+6. Check the updated ticket info in our portal  http://obdp-oozie-self-service-ui.optum.com/TechOpsServerInfo/Ticket_Expiry.html
+Please clear your browser cache or use the url in incognito mode to see the changes.
++++++++++++++++++++++
