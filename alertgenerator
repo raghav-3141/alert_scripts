@@ -1,0 +1,310 @@
+$ cat AlertGenerator1.sh
+LogFile_timestamp=`date +"%Y-%m-%d%I:%M:%S.%N"`
+LogFile=./logs/DiskUsage_$LogFile_timestamp
+
+
+echo "ssir alert started"
+
+ksh -x /fssoftware/admin/scripts/servers_monitoring/monitoring/ssir/ssir_AlertGenerator.sh
+
+echo "ssir alert script completed"
+
+
+
+#rm usage.out
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_oozie.csv
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_elastic.csv
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_talend.csv
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_output.csv
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_en2.csv
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_cassandra.csv
+rm -f /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_logstash.csv
+
+cd /fssoftware/admin/scripts/servers_monitoring/monitoring/
+
+while read env_name
+do
+
+env=`echo $env_name|cut -d"|" -f1`
+user=`echo $env_name|cut -d"|" -f2`
+pwd=`cat .${env}pwd`
+
+while read  exec_server_name
+   do
+{
+Env=`echo $exec_server_name|cut -d"|" -f1`
+server=`echo $exec_server_name|cut -d"|" -f3`
+application=`echo $exec_server_name|cut -d"|" -f4`
+
+if [ $env == "oozie" ]
+
+then
+
+sshpass -p "$pwd" ssh -n  -o StrictHostKeyChecking=no ${user}@${server}  "echo $Env;echo $server;echo $application ;ps -eaf | grep mapr |grep -e org.apache.catalina.startup.Bootstrap -e org.apache.oozie.server.EmbeddedOozieServer|grep -v grep |wc -l|awk '{print}' ORS='| ';tr ' ' '\n'| head -2 | cut -f1 -d%"| awk '{print}' ORS='| '|cut -d"|" -f1-4|sed 's/ //g'|awk -F"|" '{print $1"|"$2"|"$3"|"$4}' >> /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_oozie.csv
+
+
+elif [ $env == "elastic"  ]
+
+then
+
+sshpass -p "$pwd" ssh -n  -o StrictHostKeyChecking=no ${user}@${server}  "echo $Env;echo $server;echo $application ; ps -eaf | grep org.elasticsearch.bootstrap.Elasticsearch|grep -v grep |wc -l|awk '{print}' ORS='| ';tr ' ' '\n'| head -2 | cut -f1 -d%"| awk '{print}' ORS='| '|cut -d"|" -f1-4|sed 's/ //g'|awk -F"|" '{print $1"|"$2"|"$3"|"$4}' >> /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_elastic.csv
+
+elif [ $env == "en2"  ]
+
+then
+
+
+sshpass -p "$pwd" ssh -n  -o StrictHostKeyChecking=no ${user}@${server}  "echo $Env;echo $server;echo $application ;ps -eaf |grep kthreadd|grep -v grep  |wc -l|awk '{print}' ORS='| ';df -k /opt /home /tmp /opt/mapr| egrep -v Mounted | tr ' ' '\n' | grep -F "%" | head -5 | cut -f1 -d%"| awk '{print}' ORS='| '|cut -d"|" -f1-8|sed 's/ //g'|awk -F"|" '{print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"$7"|"$8}' >> /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_en2.csv
+
+elif [ $env == "cassandra"  ]
+
+then
+
+
+sshpass -p "$pwd" ssh -n  -o StrictHostKeyChecking=no ${user}@${server}  "echo $Env;echo $server;echo $application ;ps -eaf |grep cassandra|grep -v grep |wc -l|awk '{print}' ORS='| ';df -k /opt /home /tmp /dev /cassandra| egrep -v Mounted | tr ' ' '\n' | grep -F "%" | head -6 | cut -f1 -d%"| awk '{print}' ORS='| '|cut -d"|" -f1-9|sed 's/ //g'|awk -F"|" '{print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"$7"|"$8"|"$9}' >> /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_cassandra.csv
+
+elif [ $env == "logstash" ]
+
+then
+
+sshpass -p "$pwd" ssh -n  -o StrictHostKeyChecking=no ${user}@${server}  "echo $Env;echo $server;echo $application ;ps -eaf | grep logstash|grep -v grep |wc -l|awk '{print}' ORS='| ';tr ' ' '\n'| head -2 | cut -f1 -d%"| awk '{print}' ORS='| '|cut -d"|" -f1-4|sed 's/ //g'|awk -F"|" '{print $1"|"$2"|"$3"|"$4}' >> /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_logstash.csv
+
+
+else
+
+sshpass -p "$pwd" ssh -n  -o StrictHostKeyChecking=no ${user}@${server}  "echo $Env;echo $server;echo $application ;ps -eaf | grep classpath |grep -v grep |wc -l|awk '{print}' ORS='| ';df -k /talend /home /tmp| egrep -v Mounted | tr ' ' '\n' | grep -F "%" | head -3 | cut -f1 -d%"| awk '{print}' ORS='| '|cut -d"|" -f1-6|sed 's/ //g'|awk -F"|" '{print $1"|"$2"|"$3"|"$4"|"$5"|"$6}' >> /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_talend.csv
+
+
+fi
+
+RC=$?
+
+if [[ $RC == 0 ]]
+then
+
+dummy=0
+else
+echo "connection to $server was failed"|tee -ai $LogFile
+fi
+
+} < /dev/null;
+done < ./servers/${env}_servers.lst
+done < ./servers/env.lst
+
+#cd /uhclake_tst/developer/fstaladm/scripts/monitoring/
+
+cat /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_talend.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_oozie.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_elastic.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_en2.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_cassandra.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_logstash.csv > /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_output.csv
+
+
+
+cp /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_talend.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/Oozie
+cp /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_en2.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/Oozie
+cp /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_oozie.csv /uhclake_prd/prd/p_scripts/TechOps/scripts/Oozie
+
+
+
+
+#cd /fssoftware/admin/scripts/servers_monitoring/monitoring/
+
+thsld=80
+
+awk  -F"|" '{ if ( $4 == 0 || $5 > 90 || $6 > 90 || $7 >70 || $8 >70 || $9 >80) print $0 }' /uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/monitoring_output.csv  > ./temp/final.out
+
+while read line
+do
+env=`echo $line|cut -d"|" -f1`
+host=`echo $line|cut -d"|" -f2`
+app=`echo $line|cut -d"|" -f3`
+pid=`echo $line|cut -d"|" -f4`
+talend=`echo $line|cut -d"|" -f5`
+hm=`echo $line|cut -d"|" -f6`
+temp=`echo $line|cut -d"|" -f7`
+optmapr=`echo $line|cut -d"|" -f8`
+cassandra=`echo $line|cut -d"|" -f9`
+
+#address="suryaprakash.manthena@optum.com"
+#address=poori_keerthana@optum.com
+address=ODM_Talend_Admin_DL@ds.uhc.com
+
+if [[ $app == Oozie* && $pid -eq 0 ]]; then
+
+
+ENV=Oozie
+
+
+elif [[ $app == Talend* && $pid -eq 0 ]];
+
+then
+
+ENV=Talend
+elif [[ $app == Elastic* && $pid -eq 0 ]];
+
+then
+
+ENV=Elastic
+
+elif [[ $app == Cassandra* && $pid -eq 0 ]];
+
+then
+
+ENV=Cassandra
+
+ mailx -s"Techops Monitoring Alert: Cassandra service is down on $host" "DigiCoM@ds.uhc.com" < ./temp/pid_msg_cassandra.out
+
+elif [[ $app == logstash* && $pid -eq 0 ]];
+
+then
+
+ENV=logstash
+if  [[ $host == apsrp06318 ]]
+ then loginstance=/mapr/datalake/uhclake/prd/developer/fstaladm/logstash_conf/logstash_conf/es_uhclake_Techopssvcs_status.conf
+
+else
+
+ loginstance=/mapr/datalake/uhclake/prd/p_scripts/TechOps/oozie/dashboard/logstash.conf
+
+fi
+
+mailx -s"Techops Monitoring Alert:logstash service is down on $host and $loginstance is not running" "poori_keerthana@optum.com" < ./temp/pid_msg_logstash.out
+
+
+else
+
+echo "All are running fine"
+
+
+fi
+
+echo "$host"
+if [[ $pid -eq 0 ]]; then
+
+        echo " $ENV Instance on $host is not running!!" |tee -ai ./temp/pid_msg.out
+
+#LogDate=`date '+%Y%m%d%H%M%S'`
+#asg="ODM_TALEND"
+#incidentype=service_request
+#pri=5
+#incstate="To Be Worked"
+#incstateW="Work In Progress"
+#comments="Request is performed through self service action, more details please reach out to ODM_TALEND Or TechopsTeam"
+#closecode="Solved/Solution Provided"
+#closenotes="Request is performed through self service action"
+#ref=TechOps
+#userId=700001239
+#pass=7wPysnTDWU
+#ServiceNowPrd=https://optum.service-now.com/api/now/import/u_incident?sysparm_fields=number%2Csys_created_by%2Cshort_description%2Csys_created_on%2Cactive%2Csys_id
+#env1=prd
+#basePath=/uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor
+#servicenow=/uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/service-now
+#logsPath=/uhclake_prd/prd/p_scripts/TechOps/scripts/hs2monitor/service-now/logs
+#if [[ "$ENV" == "Oozie" && $pid -eq 0 || "$ENV" == "Elastic" && $pid -eq 0 || "$ENV" == "Talend" && $pid -eq 0  || "$ENV" == "Cassandra" && $pid  -eq 0 ||  "$ENV" == "logstash" && $pid  -eq 0 ]]; then
+#id=fstaladm
+#inc=$(curl "${ServiceNowPrd}"  --request POST --header "Accept:application/json" --header "Content-Type:application/json" --data "{\"priority\":\"$pri\",\"u_type\":\"$incidentype\",\"short_description\":\"$ENV Instance on $host is not running\",\"assignment_group\":\"$asg\",\"description\":\"Request to restart $ENV Service on $host\",\"state\":\"$incstate\"}"  --user "$userId":"$pass")
+
+
+#echo $inc >${servicenow}/${env1}-${id}.${LogDate}.inc
+
+#sleep 3s
+
+#sed 's/ /\n/g' ${servicenow}/${env1}-${id}.${LogDate}.inc|sed -e 's/[""]//g' -e 's/[[]//g' -e 's/[]]//g' -e 's/^$//g'|cut -d"," -f5,6|cut -d"," -f2 > ${servicenow}/${id}.${LogDate}.incinfo
+
+#incident=`grep display_value  ${servicenow}/${id}.${LogDate}.incinfo|cut -d":" -f2`
+
+        # echo "$incident"
+
+       #if [[ ! -z  $incident ]]
+         #then
+         #echo "Executing if"
+         #echo " $incident"
+         #echo " $incident - $ENV Instance on $host is not running!!" |tee -ai ./temp/pid_msg.out
+
+#updW=$(curl "${ServiceNowPrd}"  --request POST --header "Accept:application/json" --header "Content-Type:application/json" --data "{\"state\":\"$incstateW\",\"number\":\"$incident\",\"comments_and_work_notes\":\"$comments\",\"u_reference_1\":\"TechOps\"}"  --user "$userId":"$pass")
+  # else
+
+   # echo " No incident found "
+     # fi
+else
+
+echo " all are running fine "
+
+fi
+
+
+#fi
+
+
+if [[ $talend -ge $thsld ]]; then
+
+                echo " /talend File system is at $talend on $host !!       Application: $app       Env: $env" |tee -ai ./temp/fs_msg.out
+
+fi
+
+
+if [[ $hm -ge $thsld ]]; then
+
+                echo " /home File system is at $hm on $host!!        Application: $app        Env: $env" |tee -ai ./temp/fs_msg.out
+
+fi
+
+
+if [[ $temp -ge $thsld ]]; then
+
+               echo " /tmp File system is at $temp on $host!!         Application: $app        Env: $env" |tee -ai ./temp/fs_msg.out
+
+fi
+
+if [[ $optmapr -ge 80 ]]; then
+
+               echo " /opt/mapr File system is at $optmapr on $host!!         Application: $app        Env: $env " |tee -ai ./temp/fs_msg.out
+
+fi
+
+if [[ $cassandra -ge 80 ]]; then
+
+               echo " /cassandra File system is at $cassandra on $host!!         Application: $app        Env: $env " |tee -ai ./temp/fs_msg.out
+
+fi
+
+
+done < ./temp/final.out
+
+
+if [[ -s ./temp/pid_msg.out ]]; then
+
+ mailx -s"Techops Monitoring Alert: services are down " "$address" < ./temp/pid_msg.out
+
+else
+
+echo "All good"
+
+fi
+if [[ -s ./temp/fs_msg.out ]]; then
+
+        mailx -s"Techops Monitoring Alert:File system is nearly full" "$address" < ./temp/fs_msg.out
+
+else
+
+echo "All good"
+
+fi
+
+
+rm -f ./temp/pid_msg.out
+rm -f ./temp/fs_msg.out
+
+###################################
+#oozie workflows removing after process
+
+
+
+#cd /home/fstaladm/oozie-mapr
+
+ #set -A jNames `ls -ltr|awk -F" " '{print $9}'`
+
+   #for pEntry in ${jNames[*]}; do
+
+   #JbNm=$pEntry
+#rm -rf $JbNm
+#done
+
+###################################################
