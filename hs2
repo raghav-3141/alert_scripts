@@ -1,0 +1,37 @@
+$ cat HS2_monitoring.sh
+#CNT=0
+path=/mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor
+TIMESTAMP=`date "+%Y%m%d%H%M"`
+logpath=/mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor/log
+touch $logpath/hiveMonitoring_${TIMESTAMP}.log
+rm -f /mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor/bdp_monitor_hive_hung_status
+pwd=`cat .pwd`
+
+while read line
+do
+
+                userId=`echo $line|cut -d"|" -f1`
+		HOST=`echo $line|cut -d"|" -f2`
+		PORT=`echo $line|cut -d"|" -f3`
+                tenantPath=`echo $line|cut -d"|" -f4`
+                application=`echo $line|cut -d"|" -f5`
+                env=`echo $line|cut -d"|" -f6`
+        /opt/mapr/spark/spark/bin/beeline -u jdbc:hive2://$HOST:$PORT/default -n fshs2adm -p 'XXXX' -f /mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor/test.hql > /mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor/op.txt
+
+lines=$(wc -l $path/op.txt | awk '{print $1}')
+
+if [[ $lines -ge 5 ]]  ;  then
+echo "HS2 is not hung"
+echo "No hung HS2 process on "$Host|tee -ai $logpath/hiveMonitoring_${TIMESTAMP}.log
+echo $env'|'$userId'|'$HOST'|'$PORT'|'$tenantPath'|'$application'|0|success' |tee -ai /mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor/bdp_monitor_hive_hung_status
+
+else
+
+
+echo "HS2 is hung"
+#echo "Found hung HS2 process on $host" |tee -ai $logpath/hiveMonitoring_${TIMESTAMP}.log
+echo  $env'|'$userId'|'$HOST'|'$PORT'|'$tenantPath'|'$application'|1|failure' |tee -ai /mapr/datalake/uhclake/prd/p_scripts/TechOps/scripts/hs2monitor/bdp_monitor_hive_hung_status
+
+
+fi
+done <$path/HivePorts.list
